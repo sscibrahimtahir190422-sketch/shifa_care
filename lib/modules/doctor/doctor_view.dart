@@ -39,7 +39,7 @@ class DoctorView extends GetView<DoctorViewModel> {
                     icon: Icons.link_off_rounded,
                     title: 'Account not linked',
                     message:
-                        'This login is not linked to a doctor profile yet. Ask the administrator to link it.',
+                    'This login is not linked to a doctor profile yet. Ask the administrator to link it.',
                   );
                 }
                 return _Body(controller: controller);
@@ -52,7 +52,7 @@ class DoctorView extends GetView<DoctorViewModel> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Obx(
-            () => PrimaryButton(
+                () => PrimaryButton(
               label: controller.advanceLabel,
               icon: Icons.skip_next_rounded,
               isLoading: controller.isCalling.value,
@@ -156,11 +156,52 @@ class _Header extends StatelessWidget {
               ),
             );
           }),
+          // "Fully booked today": stop NEW bookings for today only. Hidden while
+          // on leave, because leave already blocks every booking.
+          Obx(() {
+            final doctor = controller.doctor.value;
+            if (doctor == null || doctor.onLeave) return const SizedBox.shrink();
+            final closed = doctor.isFullyBookedToday;
+            return Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(30),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    closed ? Icons.block_rounded : Icons.how_to_reg_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      closed ? 'Fully booked today — no new bookings' : 'Accepting new bookings today',
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Switch(
+                    value: closed,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.warning.withAlpha(200),
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.white.withAlpha(70),
+                    onChanged: controller.isTogglingFullyBooked.value
+                        ? null
+                        : (_) => controller.toggleFullyBookedToday(),
+                  ),
+                ],
+              ),
+            );
+          }),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Obx(
-              () => Row(
+                  () => Row(
                 children: [
                   Expanded(child: _HeaderStat(label: 'Waiting', value: controller.waiting.length)),
                   const SizedBox(width: 10),

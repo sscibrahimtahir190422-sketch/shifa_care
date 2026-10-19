@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-
 class DoctorStatsToday {
   const DoctorStatsToday({
     required this.patientsCompleted,
@@ -17,12 +16,12 @@ class DoctorStatsToday {
   final double avgRating;
 
   factory DoctorStatsToday.fromJson(Map<String, dynamic> json) => DoctorStatsToday(
-        patientsCompleted: (json['patients_completed'] as num?)?.toInt() ?? 0,
-        patientsWaiting: (json['patients_waiting'] as num?)?.toInt() ?? 0,
-        avgWaitMinutes: (json['avg_wait_minutes'] as num?)?.toDouble() ?? 0,
-        avgConsultMinutes: (json['avg_consult_minutes'] as num?)?.toDouble() ?? 0,
-        avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0,
-      );
+    patientsCompleted: (json['patients_completed'] as num?)?.toInt() ?? 0,
+    patientsWaiting: (json['patients_waiting'] as num?)?.toInt() ?? 0,
+    avgWaitMinutes: (json['avg_wait_minutes'] as num?)?.toDouble() ?? 0,
+    avgConsultMinutes: (json['avg_consult_minutes'] as num?)?.toDouble() ?? 0,
+    avgRating: (json['avg_rating'] as num?)?.toDouble() ?? 0,
+  );
 }
 
 class DepartmentStat {
@@ -39,11 +38,11 @@ class DepartmentStat {
   final double avgWaitMinutes;
 
   factory DepartmentStat.fromJson(Map<String, dynamic> json) => DepartmentStat(
-        department: json['department'] as String? ?? 'Unknown',
-        patientsToday: (json['patients_today'] as num?)?.toInt() ?? 0,
-        completedToday: (json['completed_today'] as num?)?.toInt() ?? 0,
-        avgWaitMinutes: (json['avg_wait_minutes'] as num?)?.toDouble() ?? 0,
-      );
+    department: json['department'] as String? ?? 'Unknown',
+    patientsToday: (json['patients_today'] as num?)?.toInt() ?? 0,
+    completedToday: (json['completed_today'] as num?)?.toInt() ?? 0,
+    avgWaitMinutes: (json['avg_wait_minutes'] as num?)?.toDouble() ?? 0,
+  );
 }
 
 class DoctorLoadStat {
@@ -52,6 +51,7 @@ class DoctorLoadStat {
     required this.fullName,
     required this.department,
     required this.onLeave,
+    this.fullyBookedToday = false,
     required this.patientsToday,
     required this.completedToday,
   });
@@ -60,17 +60,19 @@ class DoctorLoadStat {
   final String fullName;
   final String department;
   final bool onLeave;
+  final bool fullyBookedToday;
   final int patientsToday;
   final int completedToday;
 
   factory DoctorLoadStat.fromJson(Map<String, dynamic> json) => DoctorLoadStat(
-        id: json['id'] as String,
-        fullName: json['full_name'] as String,
-        department: json['department'] as String? ?? '',
-        onLeave: json['on_leave'] as bool? ?? false,
-        patientsToday: (json['patients_today'] as num?)?.toInt() ?? 0,
-        completedToday: (json['completed_today'] as num?)?.toInt() ?? 0,
-      );
+    id: json['id'] as String,
+    fullName: json['full_name'] as String,
+    department: json['department'] as String? ?? '',
+    onLeave: json['on_leave'] as bool? ?? false,
+    fullyBookedToday: json['fully_booked_today'] as bool? ?? false,
+    patientsToday: (json['patients_today'] as num?)?.toInt() ?? 0,
+    completedToday: (json['completed_today'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class HospitalStatsToday {
@@ -93,16 +95,35 @@ class HospitalStatsToday {
       byDepartment.isEmpty ? null : byDepartment.first;
 
   factory HospitalStatsToday.fromJson(Map<String, dynamic> json) => HospitalStatsToday(
-        totalPatientsToday: (json['total_patients_today'] as num?)?.toInt() ?? 0,
-        totalCompletedToday: (json['total_completed_today'] as num?)?.toInt() ?? 0,
-        avgWaitMinutesToday: (json['avg_wait_minutes_today'] as num?)?.toDouble() ?? 0,
-        byDepartment: ((json['by_department'] as List?) ?? [])
-            .map((e) => DepartmentStat.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        byDoctor: ((json['by_doctor'] as List?) ?? [])
-            .map((e) => DoctorLoadStat.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-      );
+    totalPatientsToday: (json['total_patients_today'] as num?)?.toInt() ?? 0,
+    totalCompletedToday: (json['total_completed_today'] as num?)?.toInt() ?? 0,
+    avgWaitMinutesToday: (json['avg_wait_minutes_today'] as num?)?.toDouble() ?? 0,
+    byDepartment: ((json['by_department'] as List?) ?? [])
+        .map((e) => DepartmentStat.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    byDoctor: ((json['by_doctor'] as List?) ?? [])
+        .map((e) => DoctorLoadStat.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+  );
+}
+
+
+class HospitalTrendDay {
+  const HospitalTrendDay({
+    required this.date,
+    required this.patients,
+    required this.completed,
+  });
+
+  final DateTime date;
+  final int patients;
+  final int completed;
+
+  factory HospitalTrendDay.fromJson(Map<String, dynamic> json) => HospitalTrendDay(
+    date: DateTime.parse(json['d'] as String),
+    patients: (json['patients'] as num?)?.toInt() ?? 0,
+    completed: (json['completed'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class StatsRepository {
@@ -110,13 +131,24 @@ class StatsRepository {
 
   final SupabaseClient _client;
 
+
   Future<DoctorStatsToday> fetchDoctorStatsToday() async {
     final res = await _client.rpc('doctor_stats_today');
+
     return DoctorStatsToday.fromJson(Map<String, dynamic>.from(res as Map));
   }
+
 
   Future<HospitalStatsToday> fetchHospitalStatsToday() async {
     final res = await _client.rpc('hospital_stats_today');
     return HospitalStatsToday.fromJson(Map<String, dynamic>.from(res as Map));
+  }
+
+
+  Future<List<HospitalTrendDay>> fetchHospitalTrend7Day() async {
+    final res = await _client.rpc('hospital_trend_7day');
+    return (res as List)
+        .map((e) => HospitalTrendDay.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 }

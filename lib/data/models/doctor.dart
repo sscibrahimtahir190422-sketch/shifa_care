@@ -8,6 +8,7 @@ class Doctor {
     required this.avgMinutes,
     required this.experienceYears,
     this.onLeave = false,
+    this.fullyBookedUntil,
   });
 
   final String id;
@@ -19,27 +20,44 @@ class Doctor {
   final int experienceYears;
   final bool onLeave;
 
-  factory Doctor.fromJson(Map<String, dynamic> json) => Doctor(
-        id: json['id'] as String,
-        fullName: json['full_name'] as String,
-        specialty: json['specialty'] as String,
-        department: json['department'] as String,
-        room: json['room'] as String,
-        avgMinutes: (json['avg_minutes'] as num).toInt(),
-        experienceYears: (json['experience_years'] as num).toInt(),
-        onLeave: json['on_leave'] as bool? ?? false,
-      );
 
-  Doctor copyWith({bool? onLeave}) => Doctor(
-        id: id,
-        fullName: fullName,
-        specialty: specialty,
-        department: department,
-        room: room,
-        avgMinutes: avgMinutes,
-        experienceYears: experienceYears,
-        onLeave: onLeave ?? this.onLeave,
-      );
+  final DateTime? fullyBookedUntil;
+
+  bool get isFullyBookedToday {
+    final d = fullyBookedUntil;
+    if (d == null) return false;
+    final now = DateTime.now();
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  factory Doctor.fromJson(Map<String, dynamic> json) => Doctor(
+    id: json['id'] as String,
+    fullName: json['full_name'] as String,
+    specialty: json['specialty'] as String,
+    department: json['department'] as String,
+    room: json['room'] as String,
+    avgMinutes: (json['avg_minutes'] as num).toInt(),
+    experienceYears: (json['experience_years'] as num).toInt(),
+    onLeave: json['on_leave'] as bool? ?? false,
+    fullyBookedUntil: json['fully_booked_until'] == null
+        ? null
+        : DateTime.parse(json['fully_booked_until'] as String),
+  );
+
+  /// [fullyBookedToday]: true = closed for today, false = reopened.
+  Doctor copyWith({bool? onLeave, bool? fullyBookedToday}) => Doctor(
+    id: id,
+    fullName: fullName,
+    specialty: specialty,
+    department: department,
+    room: room,
+    avgMinutes: avgMinutes,
+    experienceYears: experienceYears,
+    onLeave: onLeave ?? this.onLeave,
+    fullyBookedUntil: fullyBookedToday == null
+        ? fullyBookedUntil
+        : (fullyBookedToday ? DateTime.now() : null),
+  );
 
   String get initials {
     final parts = fullName

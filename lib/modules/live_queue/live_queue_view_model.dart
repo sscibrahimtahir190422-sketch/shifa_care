@@ -1,11 +1,11 @@
 import 'dart:math';
-
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../core/base/base_view_model.dart';
 import '../../core/services/local_notification_service.dart';
+import '../../core/services/receipt_service.dart';
 import '../../core/utils/app_snack.dart';
 import '../../core/utils/fmt.dart';
 import '../../core/widgets/confirm_dialog.dart';
@@ -24,15 +24,22 @@ class LiveQueueViewModel extends BaseViewModel {
   late final Rx<Appointment> appointment;
   final nowServing = 0.obs;
   final ahead = 0.obs;
+  final lastUpdated = Rxn<DateTime>();
+  final isSharingReceipt = false.obs;
 
   final _channels = <RealtimeChannel>[];
   late AppointmentStatus _lastStatus;
+
+
+  static const almostTurnAt = 2;
+  bool _warnedAlmostTurn = false;
 
   Appointment get current => appointment.value;
   AppointmentStatus get status => current.status;
   bool get isToday => Fmt.isSameDay(current.date, Fmt.today());
 
   int get etaMinutes => ahead.value * (current.doctor?.avgMinutes ?? 10);
+
 
   double get progress {
     if (status == AppointmentStatus.completed ||
@@ -66,6 +73,9 @@ class LiveQueueViewModel extends BaseViewModel {
       case AppointmentStatus.waiting:
         if (!isToday) return 'The live queue starts on the day of your visit.';
         if (ahead.value == 0) return 'Please stay close to the consultation room.';
+        if (ahead.value <= almostTurnAt) {
+          return 'Almost your turn. Start heading to ${current.doctor?.room ?? 'the consultation room'}.';
+        }
         return 'Estimated wait about ${Fmt.wait(etaMinutes)}.';
       case AppointmentStatus.inProgress:
         return 'Please proceed to ${current.doctor?.room ?? 'the consultation room'}.';
@@ -105,20 +115,47 @@ class LiveQueueViewModel extends BaseViewModel {
   Future<void> loadState({bool silent = false}) async {
     if (isClosed) return;
     await run(
-      () async {
+          () async {
         final (fresh, queue, patientsAhead) = await (
-          _repo.fetchAppointment(current.id),
-          _repo.fetchQueueStatus(doctorId: current.doctorId, date: current.date),
-          _repo.fetchPatientsAhead(current.id),
+        _repo.fetchAppointment(current.id),
+        _repo.fetchQueueStatus(doctorId: current.doctorId, date: current.date),
+        _repo.fetchPatientsAhead(current.id),
         ).wait;
 
         nowServing.value = queue.nowServing;
         ahead.value = patientsAhead;
         appointment.value = fresh.withDoctor(current.doctor);
+        lastUpdated.value = DateTime.now();
         _announceIfMyTurn();
+        _warnIfAlmostTurn();
       },
       showLoader: !silent,
       showError: !silent,
+    );
+  }
+
+  void _warnIfAlmostTurn() {
+    final close = isToday &&
+        current.status == AppointmentStatus.waiting &&
+        ahead.value > 0 &&
+        ahead.value <= almostTurnAt;
+
+    if (!close) {
+      if (ahead.value > almostTurnAt) _warnedAlmostTurn = false;
+      return;
+    }
+    if (_warnedAlmostTurn) return;
+    _warnedAlmostTurn = true;
+
+    HapticFeedback.lightImpact();
+    final room = current.doctor?.room ?? 'the consultation room';
+    final n = ahead.value;
+    final msg = '$n ${n == 1 ? 'patient is' : 'patients are'} ahead of you. '
+        'Please start heading to $room.';
+    AppSnack.success('Almost your turn. $msg');
+    _notifications.showNow(
+      title: 'Almost your turn',
+      body: 'Token #${current.token}: $msg',
     );
   }
 
@@ -135,6 +172,22 @@ class LiveQueueViewModel extends BaseViewModel {
       );
     }
     _lastStatus = now;
+  }
+
+  Future<void> downloadReceipt() async {
+    if (isSharingReceipt.value) return;
+    isSharingReceipt.value = true;
+    try {
+      final bytes = await ReceiptService.build(current);
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'shifa-care-token-${current.token}.pdf',
+      );
+    } catch (e) {
+      AppSnack.error('Could not create the receipt. Please try again.');
+    } finally {
+      isSharingReceipt.value = false;
+    }
   }
 
   Future<void> cancel() async {

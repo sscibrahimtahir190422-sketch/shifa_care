@@ -22,6 +22,14 @@ class DoctorRepository {
     return row == null ? null : Doctor.fromJson(row);
   }
 
+
+  Future<void> setFullyBookedToday(String doctorId, bool value) async {
+    await _client.rpc('set_fully_booked_today', params: {
+      'p_doctor_id': doctorId,
+      'p_value': value,
+    });
+  }
+
   Future<void> setOnLeave(String doctorId, bool onLeave) async {
     await _client.rpc('set_doctor_leave', params: {
       'p_doctor_id': doctorId,

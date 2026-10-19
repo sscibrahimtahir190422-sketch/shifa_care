@@ -109,7 +109,7 @@ class BookingView extends GetView<BookingViewModel> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Obx(
-            () => PrimaryButton(
+                () => PrimaryButton(
               label: 'Confirm booking',
               icon: Icons.check_rounded,
               isLoading: controller.isLoading.value,
@@ -137,55 +137,63 @@ class _DayStrip extends StatelessWidget {
         return ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: days.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          separatorBuilder: (_,_) => const SizedBox(width: 10),
           itemBuilder: (_, i) {
             final day = days[i];
             final isSelected = Fmt.isSameDay(day, selected);
+            final closed = controller.isDayClosed(day);
             final fg = isSelected ? Colors.white : AppColors.textPrimary;
             return GestureDetector(
-              onTap: () => controller.selectDate(day),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                width: 64,
-                decoration: BoxDecoration(
-                  gradient: isSelected ? AppColors.heroGradient : null,
-                  color: isSelected ? null : Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isSelected ? Colors.transparent : AppColors.border,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withAlpha(70),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
-                        ]
-                      : const [],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      i == 0 ? 'Today' : Fmt.shortDay(day),
-                      style: TextStyle(color: fg.withAlpha(200), fontSize: 12),
+              onTap: closed ? null : () => controller.selectDate(day),
+              child: Opacity(
+                opacity: closed ? 0.45 : 1,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  width: 64,
+                  decoration: BoxDecoration(
+                    gradient: isSelected ? AppColors.heroGradient : null,
+                    color: isSelected ? null : Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isSelected ? Colors.transparent : AppColors.border,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      Fmt.dayNumber(day),
-                      style: TextStyle(
-                        color: fg,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+                    boxShadow: isSelected
+                        ? [
+                      BoxShadow(
+                        color: AppColors.primary.withAlpha(70),
+                        blurRadius: 14,
+                        offset: const Offset(0, 6),
                       ),
-                    ),
-                    Text(
-                      Fmt.month(day),
-                      style: TextStyle(color: fg.withAlpha(200), fontSize: 11),
-                    ),
-                  ],
+                    ]
+                        : const [],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        i == 0 ? 'Today' : Fmt.shortDay(day),
+                        style: TextStyle(color: fg.withAlpha(200), fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        Fmt.dayNumber(day),
+                        style: TextStyle(
+                          color: fg,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        closed ? 'Full' : Fmt.month(day),
+                        style: TextStyle(
+                          color: closed ? AppColors.danger : fg.withAlpha(200),
+                          fontSize: 11,
+                          fontWeight: closed ? FontWeight.w700 : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -230,8 +238,8 @@ class _QueueInfo extends StatelessWidget {
                 value: loading
                     ? '...'
                     : controller.isToday
-                        ? Fmt.wait(controller.estimatedMinutes)
-                        : 'On the day',
+                    ? Fmt.wait(controller.estimatedMinutes)
+                    : 'On the day',
               ),
             ),
           ],

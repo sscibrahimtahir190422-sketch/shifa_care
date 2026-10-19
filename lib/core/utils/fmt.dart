@@ -13,6 +13,7 @@ class Fmt {
   static String shortDay(DateTime d) => DateFormat('EEE').format(d);
   static String dayNumber(DateTime d) => DateFormat('d').format(d);
   static String month(DateTime d) => DateFormat('MMM').format(d);
+  static String shortTime(DateTime d) => DateFormat('h:mm a').format(d);
 
   static DateTime today() {
     final n = DateTime.now();

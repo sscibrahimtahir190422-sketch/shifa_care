@@ -28,12 +28,27 @@ class BookingViewModel extends BaseViewModel {
 
   bool get isToday => Fmt.isSameDay(selectedDate.value, Fmt.today());
 
+  /// True when this doctor stopped taking NEW bookings on [day]
+  /// ("Fully booked today"). The server rejects it too; this just keeps
+  /// the patient from picking a day that can never work.
+  bool isDayClosed(DateTime day) {
+    final closed = doctor.fullyBookedUntil;
+    return closed != null && Fmt.isSameDay(day, closed);
+  }
+
   int get estimatedMinutes => queueSize.value * doctor.avgMinutes;
 
   @override
   void onInit() {
     super.onInit();
     doctor = Get.arguments as Doctor;
+    // If today is closed, start on the next open day instead.
+    for (final day in days) {
+      if (!isDayClosed(day)) {
+        selectedDate.value = day;
+        break;
+      }
+    }
   }
 
   @override
@@ -43,6 +58,7 @@ class BookingViewModel extends BaseViewModel {
   }
 
   Future<void> selectDate(DateTime date) async {
+    if (isDayClosed(date)) return;
     selectedDate.value = date;
     await loadQueueSize();
   }
@@ -50,7 +66,7 @@ class BookingViewModel extends BaseViewModel {
   Future<void> loadQueueSize() async {
     isLoadingQueue.value = true;
     final size = await guard(
-      () => _repo.fetchActiveQueueSize(
+          () => _repo.fetchActiveQueueSize(
         doctorId: doctor.id,
         date: selectedDate.value,
       ),
@@ -63,7 +79,7 @@ class BookingViewModel extends BaseViewModel {
 
   Future<void> confirm() async {
     final booked = await guard(
-      () => _repo.book(
+          () => _repo.book(
         doctorId: doctor.id,
         date: selectedDate.value,
         reason: reasonCtrl.text,

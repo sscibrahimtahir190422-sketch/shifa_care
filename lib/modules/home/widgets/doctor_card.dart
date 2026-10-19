@@ -76,6 +76,12 @@ class DoctorCard extends StatelessWidget {
                                   icon: Icons.workspace_premium_outlined,
                                   text: '${doctor.experienceYears} yrs',
                                 ),
+                                if (doctor.isFullyBookedToday)
+                                  const _Pill(
+                                    icon: Icons.block_rounded,
+                                    text: 'Fully booked today',
+                                    danger: true,
+                                  ),
                               ],
                             ],
                           ),

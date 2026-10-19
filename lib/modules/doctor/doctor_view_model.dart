@@ -15,12 +15,12 @@ import '../../data/services/realtime_service.dart';
 
 class DoctorViewModel extends BaseViewModel {
   DoctorViewModel(
-    this._doctors,
-    this._appointments,
-    this._realtime,
-    this._session,
-    this._stats,
-  );
+      this._doctors,
+      this._appointments,
+      this._realtime,
+      this._session,
+      this._stats,
+      );
 
   final DoctorRepository _doctors;
   final AppointmentRepository _appointments;
@@ -35,6 +35,7 @@ class DoctorViewModel extends BaseViewModel {
   final notLinked = false.obs;
   final isCalling = false.obs;
   final isTogglingLeave = false.obs;
+  final isTogglingFullyBooked = false.obs;
 
   RealtimeChannel? _channel;
 
@@ -67,7 +68,7 @@ class DoctorViewModel extends BaseViewModel {
   Future<void> load({bool silent = false}) async {
     if (isClosed) return;
     await run(
-      () async {
+          () async {
         doctor.value ??= await _doctors.fetchDoctorForUser(_session.user.value!.id);
         final d = doctor.value;
         if (d == null) {
@@ -96,7 +97,7 @@ class DoctorViewModel extends BaseViewModel {
 
     isCalling.value = true;
     final ok = await run(
-      () => _appointments.callNext(doctorId: d.id, date: today),
+          () => _appointments.callNext(doctorId: d.id, date: today),
       showLoader: false,
     );
     isCalling.value = false;
@@ -113,15 +114,33 @@ class DoctorViewModel extends BaseViewModel {
 
     final next = !d.onLeave;
     isTogglingLeave.value = true;
-    doctor.value = d.copyWith(onLeave: next); // optimistic
+    doctor.value = d.copyWith(onLeave: next);
 
     final ok = await run(
-      () => _doctors.setOnLeave(d.id, next),
+          () => _doctors.setOnLeave(d.id, next),
       showLoader: false,
     );
 
-    if (!ok) doctor.value = d; // revert on failure
+    if (!ok) doctor.value = d;
     isTogglingLeave.value = false;
+  }
+
+
+  Future<void> toggleFullyBookedToday() async {
+    final d = doctor.value;
+    if (d == null || isTogglingFullyBooked.value) return;
+
+    final next = !d.isFullyBookedToday;
+    isTogglingFullyBooked.value = true;
+    doctor.value = d.copyWith(fullyBookedToday: next);
+
+    final ok = await run(
+          () => _doctors.setFullyBookedToday(d.id, next),
+      showLoader: false,
+    );
+
+    if (!ok) doctor.value = d;
+    isTogglingFullyBooked.value = false;
   }
 
   Future<void> logout() async {
